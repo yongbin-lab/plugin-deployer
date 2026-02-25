@@ -29,96 +29,82 @@ Validate the plugin:
 2. Check component directories are at plugin root (not inside .claude-plugin/)
 3. Show a summary of what will be deployed
 
-### Step 2: Gather Deploy Config
+### Step 2: Find Existing Marketplace or Gather Config
 
-Collect deployment info with sensible defaults. Ask once, not multiple times:
+**Always check for existing marketplaces first.** One marketplace repo holds all plugins.
+
+#### 2-A: Scan for existing marketplaces
+
+1. List directories under `~/.claude/plugins/marketplaces/`
+2. Read `.claude-plugin/marketplace.json` from each
+3. Get the GitHub remote URL via `git remote -v`
+
+If found → show the marketplace info and ask "이 마켓플레이스에 추가할까요?"
+
+#### 2-B: No existing marketplace — gather config
 
 | Setting | Default | How to detect |
 |---------|---------|---------------|
 | GitHub username | Auto-detect via `gh api user --jq '.login'` | Fall back to asking |
-| Repo name | Same as plugin name | Confirm with user |
+| Repo name | `<username>-plugins` | Confirm with user |
 | Marketplace name | `<username>-plugins` | Confirm with user |
 | Visibility | public | Confirm with user |
 | License | MIT | Confirm with user |
 
 Present all defaults at once: "이대로 진행할까요?" — one confirmation, not five separate questions.
 
-### Step 3: Build Marketplace Structure
+### Step 3: Deploy
 
-Create the marketplace repo structure:
+#### 3-A: Add to existing marketplace (default path)
 
+1. Work in the marketplace directory (`~/.claude/plugins/marketplaces/<name>/`)
+2. Copy plugin into `plugins/<plugin-name>/`
+3. Add entry to `marketplace.json` plugins array
+4. Add plugin section to `README.md`
+5. `git add -A && git commit && git push`
+
+If a plugin with the same name already exists, compare versions and ask before overwriting.
+
+#### 3-B: Create new marketplace
+
+1. Create structure in `/tmp/<repo-name>/`:
 ```
 <repo-name>/
 ├── .claude-plugin/
-│   └── marketplace.json      # Marketplace catalog
+│   └── marketplace.json
 ├── plugins/
-│   └── <plugin-name>/        # Copy of the plugin
-│       ├── .claude-plugin/
-│       │   └── plugin.json
-│       ├── commands/
-│       ├── skills/
-│       └── ...
-└── README.md                 # Install instructions
+│   └── <plugin-name>/
+└── README.md
+```
+2. `gh auth status` — check auth
+3. `git init` + initial commit
+4. `gh repo create <repo> --public --source=. --push`
+
+### Step 4: Show Results
+
+**Added to existing marketplace:**
+```
+✅ 배포 완료!
+
+📦 마켓플레이스: https://github.com/<username>/<repo>
+📌 추가된 플러그인: <plugin-name> v<version>
+
+🔧 설치:
+  /plugin install <plugin-name>@<marketplace-name>
 ```
 
-**marketplace.json:**
-```json
-{
-  "name": "<marketplace-name>",
-  "owner": { "name": "<github-username>" },
-  "metadata": {
-    "description": "...",
-    "pluginRoot": "./plugins"
-  },
-  "plugins": [
-    {
-      "name": "<plugin-name>",
-      "source": "./<plugin-name>",
-      "description": "<from plugin.json>",
-      "version": "<from plugin.json>"
-    }
-  ]
-}
-```
-
-**README.md** must include:
-- Plugin name and description
-- Install instructions with exact commands
-- Usage examples
-- License info
-
-### Step 4: Deploy to GitHub
-
-Execute in order:
-1. `gh auth status` — check auth, guide login if needed
-2. `git init` + initial commit in the marketplace directory
-3. `gh repo create <repo> --public --source=. --push` (or --private)
-4. Show the result URL
-
-### Step 5: Show Results
-
+**Created new marketplace:**
 ```
 ✅ 배포 완료!
 
 📦 레포: https://github.com/<username>/<repo>
 
-🔧 설치 방법:
+🔧 설치:
   /plugin marketplace add <username>/<repo>
   /plugin install <plugin-name>@<marketplace-name>
 
-📝 업데이트 방법:
-  plugins/<plugin-name>/ 수정 → git commit → git push
-  사용자: /plugin marketplace update
+📝 다음 플러그인 배포 시 이 마켓플레이스에 자동으로 추가됩니다.
 ```
-
-## Handling Existing Marketplaces
-
-If the user already has a marketplace repo:
-1. Clone or navigate to the existing repo
-2. Copy the new plugin into `plugins/`
-3. Add a new entry to `marketplace.json` plugins array
-4. Commit and push
-5. Do NOT overwrite existing plugins or marketplace metadata
 
 ## Prerequisites Check
 
@@ -132,7 +118,7 @@ If any prerequisite fails, stop and help the user fix it before proceeding.
 ## Safety Rules
 
 - NEVER force push
-- NEVER overwrite existing repos without asking
+- NEVER overwrite existing plugins without asking
 - Warn about sensitive files (.env, credentials, tokens)
 - Always show what will be created/pushed before doing it
-- If the repo name already exists on GitHub, ask before proceeding
+- One marketplace repo for all plugins — do NOT create a new repo per plugin
